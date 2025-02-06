@@ -103,3 +103,87 @@ Copy
 Edit
 aws cloudformation create-stack --stack-name IAMDeployment --template-body file://iam-permissions.yaml --capabilities CAPABILITY_NAMED_IAM
 Once deployed, the IAM user can assume the role to deploy AWS resources.
+
+------------------------------------------------------------------------------------------------------------------
+
+Below is an example of an AWS CloudFormation template that creates an IAM user, a deployer role, and attaches the corresponding policies to both the user and the role. I'll explain each part in detail.
+
+AWS CloudFormation Template
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  # Create IAM User
+  MyUser:
+    Type: 'AWS::IAM::User'
+    Properties:
+      UserName: 'MyUser'
+      Policies:
+        - PolicyName: 'MyUserPolicy'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 's3:ListBucket'
+                  - 's3:GetObject'
+                Resource: '*'
+
+  # Create IAM Role
+  DeployerRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: 'DeployerRole'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service: 'ec2.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: 'DeployerRolePolicy'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 'ec2:DescribeInstances'
+                  - 'ec2:StartInstances'
+                  - 'ec2:StopInstances'
+                Resource: '*'
+
+  # Attach User to Group
+  MyUserGroup:
+    Type: 'AWS::IAM::Group'
+    Properties:
+      GroupName: 'MyUserGroup'
+      Policies:
+        - PolicyName: 'MyUserGroupPolicy'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 's3:ListBucket'
+                  - 's3:GetObject'
+                Resource: '*'
+  AttachUserToGroup:
+    Type: 'AWS::IAM::UserToGroupAddition'
+    Properties:
+      GroupName: !Ref MyUserGroup
+      Users:
+        - !Ref MyUser
+Explanation
+IAM User Creation:
+
+The MyUser resource creates an IAM user named MyUser.
+The Policies property attaches an inline policy to the user, allowing s3:ListBucket and s3:GetObject actions on all resources (*).
+IAM Role Creation:
+
+The DeployerRole resource creates an IAM role named DeployerRole.
+The AssumeRolePolicyDocument specifies that the role can be assumed by EC2 instances (ec2.amazonaws.com).
+The Policies property attaches an inline policy to the role, allowing ec2:DescribeInstances, ec2:StartInstances, and ec2:StopInstances actions on all resources (*).
+IAM Group and User Attachment:
+
+The MyUserGroup resource creates an IAM group named MyUserGroup with a policy allowing s3:ListBucket and s3:GetObject actions.
+The AttachUserToGroup resource adds the MyUser to the MyUserGroup.
+This template provides a basic setup for creating an IAM user and a deployer role with specific permissions. You can customize the actions and resources in the policies to fit your requirements.
