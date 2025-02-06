@@ -1,0 +1,105 @@
+AWS CloudFormation Template for Deploying AWS Permission Sets
+This CloudFormation template will:
+
+Create an IAM User
+Create a Deployer IAM Role
+Attach Policies to the User and Role
+Allow the User to Assume the Deployer Role
+Steps in Detail
+Create an IAM User
+
+A new IAM user is created.
+An inline policy (or managed policy) is attached to define its permissions.
+Create a Deployer IAM Role
+
+The Deployer Role is created with permissions required to deploy AWS resources.
+A trust relationship is defined so that only the IAM User can assume this role.
+Attach Policies
+
+The user gets permissions such as iam:PassRole (if needed).
+The deployer role gets necessary permissions to deploy resources like EC2, Lambda, or others.
+AWS CloudFormation Template
+yaml
+Copy
+Edit
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "CloudFormation template to create an IAM User, IAM Role (Deployer), and attach permissions"
+
+Resources:
+  IAMUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: "CloudDeployerUser"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSCodeDeployFullAccess
+        - arn:aws:iam::aws:policy/IAMFullAccess  # Example policies
+      Policies:
+        - PolicyName: "UserInlinePolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "sts:AssumeRole"
+                Resource: !GetAtt DeployerRole.Arn
+
+  DeployerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: "CloudDeployerRole"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              AWS: !GetAtt IAMUser.Arn
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess  # Grant full deploy access
+
+  DeployerRolePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: "DeployerRolePolicy"
+      Roles:
+        - !Ref DeployerRole
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - "ec2:*"
+              - "s3:*"
+              - "lambda:*"
+              - "cloudformation:*"
+            Resource: "*"
+
+Outputs:
+  IAMUserARN:
+    Description: "IAM User ARN"
+    Value: !GetAtt IAMUser.Arn
+
+  DeployerRoleARN:
+    Description: "IAM Role ARN for Deployment"
+    Value: !GetAtt DeployerRole.Arn
+Explanation
+IAM User (CloudDeployerUser)
+
+Has AWSCodeDeployFullAccess and IAMFullAccess managed policies.
+Has an inline policy allowing it to assume the deployer role.
+IAM Role (CloudDeployerRole)
+
+The role is assumed only by the created IAM user.
+Has AdministratorAccess to deploy resources.
+IAM Policy (DeployerRolePolicy)
+
+Grants permissions to deploy EC2, S3, Lambda, and CloudFormation.
+Deployment Steps
+Save the template as iam-permissions.yaml
+Deploy using AWS CLI:
+sh
+Copy
+Edit
+aws cloudformation create-stack --stack-name IAMDeployment --template-body file://iam-permissions.yaml --capabilities CAPABILITY_NAMED_IAM
+Once deployed, the IAM user can assume the role to deploy AWS resources.
